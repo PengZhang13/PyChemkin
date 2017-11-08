@@ -25,14 +25,16 @@ if os.path.exists(chemkin_path):
             print "Warning: CHEMKIN_DIR has not been set properly.  Please do so in the text file 'chemkin_path'"
         else:
             CHEMKIN_DIR = os.path.abspath(path)
-    
+CHEMKIN_DIR = CHEMKIN_DIR.strip('\n') # I don't know why there is a \n there.
+print CHEMKIN_DIR # Debug line. To be deleted...ZP-2017-11-05
+
 # The preamble to each Chemkin execution shell script
 CHEMKIN_SCRIPT_PREAMBLE = """#!/bin/sh -v
 
 # Define Chemkin running environment
 . {0}
 
-""".format(os.path.join(CHEMKIN_DIR, 'bin', 'chemkinpro_setup.ksh'))
+""".format(os.path.join(CHEMKIN_DIR, 'bin', 'chemkin_setup.ksh'))
 
 
 class ChemkinJob(object):
@@ -73,7 +75,8 @@ class ChemkinJob(object):
     
     @property
     def dataZipFile(self):
-        return os.path.join(self.tempDir, 'XMLdata_{0}.zip'.format(self.name))    
+        return os.path.join(self.tempDir, 'XMLdata.zip')    
+        # return os.path.join(self.tempDir, 'XMLdata_{0}.zip'.format(self.name))    
     
     def preprocess(self):
         """
@@ -184,7 +187,8 @@ class ChemkinJob(object):
     def writeInputHomogeneousBatch(self,problemType, reactants, temperature, pressure, endTime, 
                       Continuations=False, typeContinuation = None, Tlist = [], Plist = [],
                       variableVolume=False, variableVolumeProfile = None, 
-                      solverTimeStepProfile = None, sensitivity=[], rop=[]):
+                      solverTimeStepProfile = None, solverMaxTimeStep = False, maxTimeStep = None,
+                      sensitivity=[], rop=[]):
         """
         Write input file for homogeneous batch reactor
         """
@@ -224,7 +228,7 @@ TRAN   ! Transient Solver""")
 ! physical property
 ! 
 !Surface_Temperature   ! Surface Temperature Same as Gas Temperature
-IFAC 0.1   ! Ignition Noise Filtering Factor
+!IFAC 0.1   ! Ignition Noise Filtering Factor ! CHEMKIN raises an error for this line. So PZ decided to comment it out.
 """)
             
         input_stream+=('PRES {0:g}   ! Pressure (atm)\n'.format(pressure/1.01325))
@@ -274,6 +278,9 @@ RTOL 1.0E-8   ! Relative Tolerance""")
                     input_stream+=("""
 STPTPRO {0:g} {1:g}           ! Solver Maximum Step Time (sec)""".format(time,vol))
             
+        if solverMaxTimeStep:
+            input_stream+=("""
+STPT {0:g}   ! Solver Maximum Step Time (sec)""".format(maxTimeStep))
         
         input_stream+=("""
 TIME {0:g}                 ! End Time (sec)""".format(endTime))
